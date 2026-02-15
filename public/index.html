@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>职场对话画像与交涉建议</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 0; background: #f7f7f9; }
+      .container { max-width: 800px; margin: 0 auto; padding: 16px; }
+      header { margin-bottom: 16px; }
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .thumb { width: 96px; height: 96px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; }
+      .actions { display: flex; gap: 8px; }
+      button { padding: 8px 12px; border-radius: 6px; border: 1px solid #e5e7eb; background: #111827; color: #fff; cursor: pointer; }
+      button[disabled] { opacity: 0.6; cursor: not-allowed; }
+      input, select { padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; }
+      .label { font-size: 13px; color: #374151; margin-bottom: 6px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 13px; }
+      .disclaimer { color: #6b7280; font-size: 12px; }
+      .copy { background: #2563eb; border-color: #1d4ed8; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>职场对话画像与交涉建议</h1>
+        <div class="disclaimer">至少上传 5 张职场对话截图；用于即时分析；不保证结果，请遵循职场伦理与合规。</div>
+      </header>
+
+      <div class="card">
+        <div class="row">
+          <div class="label">输入方式（二选一）</div>
+          <label><input type="radio" name="input_mode" value="images" checked /> 上传图片（≥5）</label>
+          <label><input type="radio" name="input_mode" value="text" /> 仅文本</label>
+        </div>
+        <div id="uploadBox" style="margin-top: 12px;">
+          <div class="label">上传职场对话截图（PNG/JPG，单张 ≤10MB，至少 5 张）</div>
+          <input id="fileInput" type="file" accept="image/*" multiple />
+          <div id="preview" class="row" style="margin-top: 12px;"></div>
+        </div>
+        <div id="textBox" style="margin-top: 12px; display:none;">
+          <div class="label">补充文本（仅文本模式必填）</div>
+          <textarea id="extraText" rows="6" style="width:100%;" placeholder="可填写目标背景、对话要点等自由文本"></textarea>
+        </div>
+
+        <div class="grid" style="margin-top: 12px;">
+          <div>
+            <div class="label">交涉目标（自由文本）</div>
+            <input id="goal" type="text" placeholder="例如：明确职责与边界、争取项目资源" style="width:100%;" />
+          </div>
+          <div>
+            <div class="label">场景线索</div>
+            <select id="stage">
+              <option value="">未填写</option>
+              <option value="会议纪要">会议纪要</option>
+              <option value="群聊记录">群聊记录</option>
+              <option value="邮件片段">邮件片段</option>
+              <option value="__custom__">创建新场景</option>
+            </select>
+            <input id="contextText" type="text" placeholder="请输入新场景名称或描述" style="width:100%; margin-top:8px; display:none;" />
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top: 12px;">
+          <button id="analyzeBtn">提交分析</button>
+          <div id="status" class="disclaimer"></div>
+        </div>
+      </div>
+
+      <div id="resultCard" class="card" style="display:none;">
+        <div id="summary"></div>
+        <div id="recommendations" style="margin-top: 8px;"></div>
+        <div id="risks" style="margin-top: 8px;"></div>
+        <div id="confidence" class="mono" style="margin-top: 8px;"></div>
+        <div id="disclaimer" class="disclaimer" style="margin-top: 8px;"></div>
+      </div>
+    </div>
+    <script>
+      const uploadBox = document.getElementById('uploadBox');
+      const fileInput = document.getElementById('fileInput');
+      const preview = document.getElementById('preview');
+      const extraText = document.getElementById('extraText');
+      const textBox = document.getElementById('textBox');
+      const modeRadios = Array.from(document.querySelectorAll('input[name="input_mode"]'));
+      const analyzeBtn = document.getElementById('analyzeBtn');
+      const statusEl = document.getElementById('status');
+      const resultCard = document.getElementById('resultCard');
+      const summaryEl = document.getElementById('summary');
+      const recommendationsEl = document.getElementById('recommendations');
+      const risksEl = document.getElementById('risks');
+      const confidenceEl = document.getElementById('confidence');
+      const disclaimerEl = document.getElementById('disclaimer');
+      const contextText = document.getElementById('contextText');
+
+      document.getElementById('stage').addEventListener('change', () => {
+        const val = document.getElementById('stage').value;
+        document.getElementById('contextText').style.display = val === '__custom__' ? '' : 'none';
+      });
+      modeRadios.forEach(r => {
+        r.addEventListener('change', () => {
+          const m = document.querySelector('input[name="input_mode"]:checked').value;
+          if (m === 'images') {
+            uploadBox.style.display = '';
+            textBox.style.display = 'none';
+          } else {
+            uploadBox.style.display = 'none';
+            textBox.style.display = '';
+          }
+        });
+      });
+
+      fileInput.addEventListener('change', () => {
+        preview.innerHTML = '';
+        const files = Array.from(fileInput.files);
+        files.slice(0, 20).forEach(file => {
+          const url = URL.createObjectURL(file);
+          const img = document.createElement('img');
+          img.src = url;
+          img.className = 'thumb';
+          preview.appendChild(img);
+        });
+      });
+
+      analyzeBtn.addEventListener('click', async () => {
+        statusEl.textContent = '正在分析，请稍候...';
+        analyzeBtn.disabled = true;
+        try {
+          const fd = new FormData();
+          const mode = document.querySelector('input[name="input_mode"]:checked').value;
+          const files = Array.from(fileInput.files);
+          if (mode === 'images') {
+            if (files.length < 5) {
+              statusEl.textContent = '请至少选择 5 张图片';
+              analyzeBtn.disabled = false;
+              return;
+            }
+            files.forEach(f => fd.append('images', f));
+            fd.append('extra_text', '');
+          } else {
+            const text = (extraText.value || '').trim();
+            if (!text) {
+              statusEl.textContent = '请填写文本内容';
+              analyzeBtn.disabled = false;
+              return;
+            }
+            fd.append('extra_text', text);
+          }
+          const stageVal = document.getElementById('stage').value;
+          const contextVal = stageVal === '__custom__' ? document.getElementById('contextText').value : stageVal;
+          fd.append('goal', document.getElementById('goal').value);
+          fd.append('stage', stageVal);
+          fd.append('context', contextVal);
+          const resp = await fetch('/api/analyze', { method: 'POST', body: fd });
+          const data = await resp.json();
+          renderResult(data);
+          resultCard.style.display = 'block';
+          statusEl.textContent = '分析完成';
+        } catch (e) {
+          statusEl.textContent = '分析失败';
+          console.error(e);
+        } finally {
+          analyzeBtn.disabled = false;
+        }
+      });
+
+      function renderResult(data) {
+        if (data.raw) {
+          summaryEl.innerHTML = '<div class="mono">' + escapeHtml(data.raw) + '</div>';
+          recommendationsEl.innerHTML = '';
+          risksEl.innerHTML = '';
+          confidenceEl.textContent = '';
+          disclaimerEl.textContent = '';
+          return;
+        }
+        const s = data.summary || {};
+        const r = data.recommendations || {};
+        const risks = data.risks || [];
+        const conf = data.confidence;
+        const disc = data.disclaimer;
+
+        summaryEl.innerHTML = [
+          '<div><strong>画像摘要</strong></div>',
+          '<div>角色与倾向：' + (Array.isArray(s.traits) ? s.traits.join('、') : '-') + '</div>',
+          '<div>关注点与诉求：' + (Array.isArray(s.interests) ? s.interests.join('、') : '-') + '</div>',
+          '<div>沟通风格：' + (s.communication_style || '-') + '</div>',
+          '<div>职场价值与优先级：' + (Array.isArray(s.values) ? s.values.join('、') : '-') + '</div>'
+        ].join('');
+
+        const opener = Array.isArray(r.openers) && r.openers[0] ? r.openers[0] : '';
+        const openerHtml = opener
+          ? '<div style="margin-top:6px;"><strong>开场与关键措辞</strong></div><div class="row"><div class="mono">' + escapeHtml(opener) + '</div><button class="copy" onclick="copyText(\'' + escapeJs(opener) + '\')">复制</button></div>'
+          : '';
+
+        recommendationsEl.innerHTML = [
+          '<div><strong>交涉建议</strong></div>',
+          openerHtml,
+          '<div style="margin-top:6px;">议题：' + (Array.isArray(r.topics) ? r.topics.join('、') : '-') + '</div>',
+          '<div>行动建议：' + (Array.isArray(r.activities) ? r.activities.join('、') : '-') + '</div>',
+          '<div>应做：' + (Array.isArray(r.dos) ? r.dos.join('、') : '-') + '</div>',
+          '<div>不宜：' + (Array.isArray(r.donts) ? r.donts.join('、') : '-') + '</div>'
+        ].join('');
+
+        risksEl.innerHTML = '<div><strong>风险提示</strong></div><div>' + (Array.isArray(risks) ? risks.join('、') : '-') + '</div>';
+        confidenceEl.textContent = typeof conf === 'number' ? ('置信度：' + conf.toFixed(2)) : '';
+        disclaimerEl.textContent = disc || '建议仅供参考，请遵循职场伦理与合规';
+      }
+
+      function copyText(text) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+      function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+      }
+      function escapeJs(str) {
+        return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      }
+    </script>
+  </body>
+</html>
