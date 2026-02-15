@@ -154,7 +154,12 @@
           fd.append('stage', stageVal);
           fd.append('context', contextVal);
           const resp = await fetch('/api/analyze', { method: 'POST', body: fd });
-          const data = await resp.json();
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            statusEl.textContent = (data && data.error) ? ('分析失败：' + data.error) : ('分析失败：' + resp.status + ' ' + resp.statusText);
+            resultCard.style.display = 'none';
+            return;
+          }
           renderResult(data);
           resultCard.style.display = 'block';
           statusEl.textContent = '分析完成';

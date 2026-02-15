@@ -34,7 +34,7 @@ app.post('/api/analyze', upload.array('images'), async (req, res) => {
     const { stage, age_range, gender_pref, goal, context, extra_text } = req.body || {};
     const textOnly = typeof extra_text === 'string' && extra_text.trim().length > 0;
     if (files.length < 5 && !textOnly) {
-      return res.status(400).json({ error: '请至少上传 5 张图片，或改为仅文本模式填写内容' });
+      return res.status(400).json({ error: '请至少上传 5 张图片，或切换到“仅文本”并填写内容' });
     }
     const images = files.length > 0
       ? files.map((f) => {
