@@ -31,7 +31,7 @@ app.post('/api/analyze', upload.array('images'), async (req, res) => {
       baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
     });
     const files = req.files || [];
-    const { stage, age_range, gender_pref, goal, context, extra_text } = req.body || {};
+    const { stage, age_range, gender_pref, goal, context, extra_text, relation } = req.body || {};
     const textOnly = typeof extra_text === 'string' && extra_text.trim().length > 0;
     if (files.length < 5 && !textOnly) {
       return res.status(400).json({ error: '请至少上传 5 张图片，或切换到“仅文本”并填写内容' });
@@ -71,7 +71,7 @@ app.post('/api/analyze', upload.array('images'), async (req, res) => {
   "disclaimer": "遵循职场伦理与合规的声明"
 }`;
 
-    const userContext = `目标=${goal || '未填写'}；阶段=${stage || '未填写'}；年龄范围=${age_range || '未填写'}；性别倾向=${gender_pref || '未填写'}；场景线索=${context || '未填写'}；补充文本=${(extra_text || '').slice(0,500)}。`;
+    const userContext = `目标=${goal || '未填写'}；阶段=${stage || '未填写'}；年龄范围=${age_range || '未填写'}；性别倾向=${gender_pref || '未填写'}；场景线索=${context || '未填写'}；关系与偏好=${(relation || '').slice(0,300)}；补充文本=${(extra_text || '').slice(0,500)}。`;
 
     const promptText =
       `${systemPrompt}\n任务：基于用户提供的职场对话截图，快速归纳画像并给出简短有效的交涉建议，目标是在职场场景中推进共同目标，不被低估、不被忽悠（不保证结果）。\n` +
@@ -84,8 +84,12 @@ app.post('/api/analyze', upload.array('images'), async (req, res) => {
       contentParts.push({ type: 'input_text', text: extra_text });
     }
     contentParts.push(...images);
+    const modelFromEnv = process.env.ARK_MODEL || process.env.ARK_EP_ID || process.env.ARK_ENDPOINT_ID;
+    if (!modelFromEnv) {
+      return res.status(500).json({ error: '未配置 ARK_MODEL 或 ARK_EP_ID 环境变量（请设置为可用的模型名或端点ID，例如 ep-xxxxxxxx）' });
+    }
     const response = await client.responses.create({
-      model: 'doubao-seed-1.6-thinking',
+      model: modelFromEnv,
       input: [
         {
           role: 'user',

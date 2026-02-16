@@ -46,6 +46,10 @@
           <textarea id="extraText" rows="6" style="width:100%;" placeholder="可填写目标背景、对话要点等自由文本"></textarea>
         </div>
 
+        <div style="margin-top: 12px;">
+          <div class="label">关系与偏好（选填）</div>
+          <textarea id="relationText" rows="4" style="width:100%;" placeholder="例如：上下级/合作关系；对方风格与偏好、利益关联等"></textarea>
+        </div>
         <div class="grid" style="margin-top: 12px;">
           <div>
             <div class="label">交涉目标（自由文本）</div>
@@ -94,6 +98,7 @@
       const confidenceEl = document.getElementById('confidence');
       const disclaimerEl = document.getElementById('disclaimer');
       const contextText = document.getElementById('contextText');
+      const relationText = document.getElementById('relationText');
 
       document.getElementById('stage').addEventListener('change', () => {
         const val = document.getElementById('stage').value;
@@ -153,6 +158,7 @@
           fd.append('goal', document.getElementById('goal').value);
           fd.append('stage', stageVal);
           fd.append('context', contextVal);
+          fd.append('relation', (relationText.value || ''));
           const resp = await fetch('/api/analyze', { method: 'POST', body: fd });
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) {
