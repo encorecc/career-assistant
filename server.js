@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const { OpenAI } = require('openai');
+try { require('dotenv').config(); } catch (_) {}
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -14,12 +15,21 @@ const upload = multer({
 });
 
 const PORT = process.env.PORT || 3000;
-const ARK_API_KEY = process.env.ARK_API_KEY;
+const ARK_API_KEY = process.env.ARK_API_KEY || process.env.ARK_API_Key || process.env.ARK_APIKEY;
 if (!ARK_API_KEY) {
-  console.warn('未检测到 ARK_API_KEY 环境变量，请在系统中设置。');
+  console.warn('未检测到 ARK_API_KEY 环境变量（或兼容键 ARK_API_Key / ARK_APIKEY），请在系统中设置。');
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/api/health', (req, res) => {
+  const modelFromEnv = process.env.ARK_MODEL || process.env.ARK_EP_ID || process.env.ARK_ENDPOINT_ID;
+  res.json({
+    ok: true,
+    has_key: !!ARK_API_KEY,
+    has_model: !!modelFromEnv,
+    port: PORT
+  });
+});
 
 app.post('/api/analyze', upload.array('images'), async (req, res) => {
   try {

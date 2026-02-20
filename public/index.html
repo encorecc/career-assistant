@@ -52,10 +52,6 @@
         </div>
         <div class="grid" style="margin-top: 12px;">
           <div>
-            <div class="label">交涉目标（自由文本）</div>
-            <input id="goal" type="text" placeholder="例如：明确职责与边界、争取项目资源" style="width:100%;" />
-          </div>
-          <div>
             <div class="label">场景线索</div>
             <select id="stage">
               <option value="">未填写</option>
@@ -65,6 +61,14 @@
               <option value="__custom__">创建新场景</option>
             </select>
             <input id="contextText" type="text" placeholder="请输入新场景名称或描述" style="width:100%; margin-top:8px; display:none;" />
+            <div class="row" style="margin-top:8px;">
+              <button id="saveSceneBtn">保存场景</button>
+            </div>
+            <div id="savedScenes" class="row" style="margin-top:8px;"></div>
+          </div>
+          <div>
+            <div class="label">交涉目标（自由文本）</div>
+            <textarea id="goal" rows="3" style="width:100%; resize: both;" placeholder="例如：明确职责与边界、争取项目资源"></textarea>
           </div>
         </div>
 
@@ -98,11 +102,80 @@
       const confidenceEl = document.getElementById('confidence');
       const disclaimerEl = document.getElementById('disclaimer');
       const contextText = document.getElementById('contextText');
+      const savedScenesEl = document.getElementById('savedScenes');
+      const saveSceneBtn = document.getElementById('saveSceneBtn');
       const relationText = document.getElementById('relationText');
 
       document.getElementById('stage').addEventListener('change', () => {
         const val = document.getElementById('stage').value;
         document.getElementById('contextText').style.display = val === '__custom__' ? '' : 'none';
+      });
+      let savedScenes = [];
+      function loadSavedScenes() {
+        try {
+          const raw = localStorage.getItem('savedScenes') || '[]';
+          savedScenes = JSON.parse(raw);
+          if (!Array.isArray(savedScenes)) savedScenes = [];
+        } catch { savedScenes = []; }
+      }
+      function saveSavedScenes() {
+        localStorage.setItem('savedScenes', JSON.stringify(savedScenes));
+      }
+      function updateStageOptions() {
+        const sel = document.getElementById('stage');
+        const existing = Array.from(sel.options).map(o => o.value);
+        savedScenes.forEach(v => {
+          if (!existing.includes(v)) {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            sel.appendChild(opt);
+          }
+        });
+      }
+      function renderSavedScenes() {
+        savedScenesEl.innerHTML = '';
+        savedScenes.forEach(v => {
+          const wrap = document.createElement('div');
+          wrap.className = 'row';
+          const span = document.createElement('span');
+          span.textContent = v;
+          const btn = document.createElement('button');
+          btn.textContent = '×';
+          btn.dataset.value = v;
+          wrap.appendChild(span);
+          wrap.appendChild(btn);
+          savedScenesEl.appendChild(wrap);
+        });
+      }
+      loadSavedScenes();
+      updateStageOptions();
+      renderSavedScenes();
+      saveSceneBtn.addEventListener('click', () => {
+        const val = contextText.value.trim();
+        const stageVal = document.getElementById('stage').value;
+        if (stageVal !== '__custom__') return;
+        if (!val) return;
+        if (!savedScenes.includes(val)) {
+          savedScenes.push(val);
+          saveSavedScenes();
+          updateStageOptions();
+          renderSavedScenes();
+        }
+        document.getElementById('stage').value = val;
+        contextText.value = '';
+        contextText.style.display = 'none';
+      });
+      savedScenesEl.addEventListener('click', (e) => {
+        const t = e.target;
+        if (t.tagName === 'BUTTON' && t.dataset.value) {
+          const v = t.dataset.value;
+          savedScenes = savedScenes.filter(x => x !== v);
+          saveSavedScenes();
+          const sel = document.getElementById('stage');
+          Array.from(sel.options).forEach(o => { if (o.value === v) sel.removeChild(o); });
+          renderSavedScenes();
+        }
       });
       modeRadios.forEach(r => {
         r.addEventListener('change', () => {
